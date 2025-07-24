@@ -1,22 +1,29 @@
 import pandas as pd
 
-# Ganti path sesuai lokasi dataset kamu
-df = pd.read_csv("C:/Users/helwyza/Desktop/smart-waste/python/fashion-dataset/styles.csv", encoding="utf-8", on_bad_lines="skip")
+# Load datasets
+df = pd.read_csv("fashion-dataset/styles.csv", quotechar='"', encoding='utf-8', on_bad_lines='skip')
+df_images = pd.read_csv("fashion-dataset/images.csv")
 
+# Bersihkan kolom filename di df_images
+df_images["filename"] = df_images["filename"].str.replace(".jpg", "", regex=False)
+df_images["filename"] = pd.to_numeric(df_images["filename"], errors="coerce")
+df_images = df_images.dropna(subset=["filename"])
+df_images["filename"] = df_images["filename"].astype(int)
 
-# Kolom yang ingin dicek
-columns_to_check = [
-    "gender",
-    "masterCategory",
-    "subCategory",
-    "articleType",
-    "baseColour",
-    "season",
-    "year",
-    "usage"
-]
+# Gabungkan berdasarkan id dan filename
+df_combined = pd.merge(df, df_images, left_on="id", right_on="filename", how="left")
 
-# Ambil nilai unik
-for col in columns_to_check:
-    print(f"\nUnique values for '{col}':")
-    print(sorted(df[col].dropna().unique().tolist()))
+# Isi kosong dengan string kosong dan buat kolom text gabungan
+df_combined["productDisplayName"] = df_combined["productDisplayName"].fillna("").astype(str)
+df_combined["articleType"] = df_combined["articleType"].fillna("")
+df_combined["baseColour"] = df_combined["baseColour"].fillna("")
+
+# Gabungkan teks untuk TF-IDF
+df_combined["text"] = (
+    df_combined["productDisplayName"] + " " +
+    df_combined["articleType"] + " " +
+    df_combined["baseColour"]
+)
+
+# Tampilkan hasil kolom text
+print(df_combined[["id", "productDisplayName", "articleType", "baseColour", "text"]].head(10))
