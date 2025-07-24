@@ -35,14 +35,28 @@ tfidf = TfidfVectorizer(stop_words="english")
 tfidf_matrix = tfidf.fit_transform(df_combined["text"])
 id_index_map = {row["id"]: idx for idx, row in df_combined.iterrows()}
 
-# === Skin Tone Map ===
+# === Skin Tone Color Mapping berdasarkan baseColour ===
 SKIN_TONE_COLOR_MAP = {
-    "warm": ["red", "orange", "yellow", "brown", "olive", "beige"],
-    "cool": ["blue", "green", "purple", "gray", "black"],
-    "neutral": ["white", "black", "gray", "navy", "denim"]
+    "warm": [
+        "Red", "Orange", "Yellow", "Brown", "Coffee Brown", "Beige", "Gold",
+        "Copper", "Mustard", "Tan", "Peach", "Skin", "Rust", "Mushroom Brown"
+    ],
+    "cool": [
+        "Blue", "Navy Blue", "Green", "Teal", "Turquoise Blue", "Purple", "Lavender",
+        "Magenta", "Maroon", "Black", "Silver", "Steel", "Mauve"
+    ],
+    "neutral": [
+        "White", "Off White", "Grey", "Charcoal", "Cream", "Olive", "Burgundy",
+        "Rose", "Khaki", "Grey Melange", "Bronze", "Taupe", "Nude"
+    ],
+    # Opsional: warna tidak dikategorikan
+    "unknown": [
+        "Multi", "Fluorescent Green", "Metallic", ""
+    ]
 }
 
-# === Category Relevance Map ===
+
+
 RELEVANT_CATEGORY_MAP = {
     ("Apparel", "Topwear"): [("Apparel", "Bottomwear"), ("Footwear", None), ("Accessories", None)],
     ("Apparel", "Bottomwear"): [("Apparel", "Topwear"), ("Footwear", None), ("Accessories", None)],
@@ -53,11 +67,41 @@ RELEVANT_CATEGORY_MAP = {
 }
 
 def get_relevant_categories(master, sub):
+    """
+    Mendapatkan kategori relevan berdasarkan masterCategory dan subCategory.
+    
+    Jika tidak ada mapping yang sesuai, maka akan mengembalikan kategori default.
+    
+    Parameters
+    ----------
+    master : str
+        Master category
+    sub : str
+        Sub category
+    
+    Returns
+    -------
+    List of tuples
+        [(master_category1, sub_category1), (master_category2, sub_category2), ...]
+    """
     return RELEVANT_CATEGORY_MAP.get((master, sub)) or \
            RELEVANT_CATEGORY_MAP.get((master, None)) or \
            [("Apparel", "Topwear"), ("Apparel", "Bottomwear"), ("Footwear", None)]
 
 def build_reference(ref):
+    """
+    Membuat object referensi dari baris DataFrame.
+
+    Parameters
+    ----------
+    ref : pd.Series
+        Baris DataFrame yang berisi informasi produk
+
+    Returns
+    -------
+    dict
+        Objek dengan kunci id, productDisplayName, baseColour, articleType, link, usage, gender, season
+    """
     return {
         "id": int(ref["id"]),
         "productDisplayName": ref["productDisplayName"],
@@ -70,6 +114,27 @@ def build_reference(ref):
     }
 
 def filter_by_user_preferences(df, style=None, skin_tone=None, gender=None, season=None):
+    """
+    Filter DataFrame berdasarkan preferensi pengguna.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame yang berisi informasi produk
+    style : str, optional
+        Gaya produk yang diinginkan. Jika None, maka tidak akan difilter.
+    skin_tone : str, optional
+        Warna kulit yang diinginkan. Jika None, maka tidak akan difilter.
+    gender : str, optional
+        Jenis kelamin yang diinginkan. Jika None, maka tidak akan difilter.
+    season : str, optional
+        Musim yang diinginkan. Jika None, maka tidak akan difilter.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame yang sudah difilter berdasarkan preferensi pengguna
+    """
     result = df.copy()
     if style:
         result = result[result["usage"].str.lower() == style.lower()]
@@ -94,7 +159,7 @@ def generate_recommendations(item_id, skin_tone=None):
         df_combined,
         style=ref_item["usage"],
         gender=ref_item["gender"],
-        season=ref_item["season"],
+        # season=ref_item["season"],
         skin_tone=skin_tone
     )
 
@@ -135,8 +200,12 @@ def generate_recommendations(item_id, skin_tone=None):
             "productDisplayName": rec["productDisplayName"],
             "baseColour": rec["baseColour"],
             "articleType": rec["articleType"],
-            "link": rec["link"] if pd.notna(rec["link"]) else None
+            "link": rec["link"] if pd.notna(rec["link"]) else None,
+            "gender": rec["gender"],
+            "season": rec["season"],
+            "usage": rec["usage"]
         })
+
         seen_ids.add(rec["id"])
         seen_names.add(rec["productDisplayName"])
         if len(recommendations) >= 6:
@@ -169,6 +238,8 @@ def catalog_route():
     try:
         page = int(request.args.get("page", 1))
         limit = int(request.args.get("limit", 12))
+        skin_tone = request.args.get("skin_tone")  # ✅ Tambahkan ini
+
         filters = {
             "gender": request.args.get("gender"),
             "season": request.args.get("season"),
@@ -188,6 +259,11 @@ def catalog_route():
             if val and key in catalog.columns:
                 catalog = catalog[catalog[key].str.lower() == val.lower()]
 
+        # ✅ Tambahkan filter skin tone (warna) di sini
+        # if skin_tone and skin_tone.lower() in SKIN_TONE_COLOR_MAP:
+        #     valid_colours = [c.lower() for c in SKIN_TONE_COLOR_MAP[skin_tone.lower()]]
+        #     catalog = catalog[catalog["baseColour"].str.lower().isin(valid_colours)]
+
         catalog = catalog[["id", "productDisplayName", "baseColour", "articleType", "link"]].dropna()
 
         total_items = len(catalog)
@@ -205,6 +281,7 @@ def catalog_route():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route("/catalog/<int:item_id>", methods=["GET"])

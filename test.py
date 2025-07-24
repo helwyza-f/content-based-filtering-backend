@@ -27,3 +27,6 @@ df_combined["text"] = (
 
 # Tampilkan hasil kolom text
 print(df_combined[["id", "productDisplayName", "articleType", "baseColour", "text"]].head(10))
+
+# ✅ Tampilkan nilai unik dari baseColour
+print("Unique baseColour values:", df_combined["baseColour"].unique())
