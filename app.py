@@ -74,7 +74,7 @@ fetch_products_from_supabase()
 
 # ====== Skin Tone Color Map ======
 SKIN_TONE_COLOR_MAP = {
-    "warm": ["Red", "Orange", "Yellow", "Brown", "Coffee Brown", "Beige", "Gold",
+    "warm": ["Red", "Orange", "Black", "Yellow", "Brown",  "Navy Blue", "Coffee Brown", "Beige", "Gold",
              "Copper", "Mustard", "Tan", "Peach", "Skin", "Rust", "Mushroom Brown"],
     "cool": ["Blue", "Navy Blue", "Green", "Teal", "Turquoise Blue", "Purple",
              "Lavender", "Magenta", "Maroon", "Black", "Silver", "Steel", "Mauve"],
@@ -135,7 +135,7 @@ def recommend_by_user():
         if not gender or not skin_tone:
             return jsonify({"error": "Missing gender or skin_tone"}), 400
 
-        category_order = ["Topwear", "Bottomwear", "Footwear", "Accessories"]
+        category_order = ["Topwear", "Bottomwear", "Footwear"]
         ordered_styles = ["formal", "casual", "sports"]
 
         recommendations = OrderedDict()
